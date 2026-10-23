@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'view_model.dart';
+import 'scoreboard.dart';
 
 class QuestionScreen extends StatefulWidget {
   const QuestionScreen({super.key});
@@ -24,30 +25,41 @@ class _QuestionScreenState extends State<QuestionScreen> {
               TextButton(
                 onPressed:
                     viewModel.hasNextQuestion && viewModel.didAnswerQuestion
-                    ? () {
-                        viewModel.getNextQuestion();
-                      }
-                    : null,
+                        ? () {
+                            viewModel.getNextQuestion();
+                          }
+                        : null,
                 child: const Text('Next'),
               ),
             ],
           ),
-          body: Center(
-            child: Column(
-              children: [
-                QuestionCard(question: viewModel.currentQuestion?.question),
-                Spacer(),
-                AnswerCards(
-                  onTapped: (index) {
-                    viewModel.checkAnswer(index);
-                  },
-                  answers: viewModel.currentQuestion?.possibleAnswers ?? [],
-                  correctAnswer: viewModel.didAnswerQuestion
-                      ? viewModel.currentQuestion?.correctAnswer
-                      : null,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 12),
+                    QuestionCard(
+                      question: viewModel.currentQuestion?.question,
+                    ),
+                    const SizedBox(height: 16),
+                    AnswerCards(
+                      onTapped: (index) {
+                        viewModel.checkAnswer(index);
+                      },
+                      answers: viewModel.currentQuestion?.possibleAnswers ?? [],
+                      correctAnswer: viewModel.didAnswerQuestion
+                          ? viewModel.currentQuestion?.correctAnswer
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    StatusBar(viewModel: viewModel),
+                    const SizedBox(height: 12),
+                  ],
                 ),
-                StatusBar(viewModel: viewModel),
-              ],
+              ),
             ),
           ),
         );
@@ -61,14 +73,14 @@ class _QuestionScreenState extends State<QuestionScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Game Over!'),
+          title: const Text('Game Over!'),
           content: Text('Score: ${viewModel.score}'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.popUntil(context, (route) => route.isFirst);
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
           ],
         );
@@ -84,13 +96,37 @@ class QuestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text(
-          question ?? '',
-          style: Theme.of(context).textTheme.displaySmall,
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      transitionBuilder: (child, animation) {
+        final curveAnimation = CurveTween(
+          curve: Curves.easeInCubic,
+        ).animate(animation);
+
+        final offsetAnimation = Tween<Offset>(
+          begin: const Offset(-0.1, 0.0),
+          end: Offset.zero,
+        ).animate(curveAnimation);
+
+        final fadeInAnimation = curveAnimation;
+
+        return FadeTransition(
+          opacity: fadeInAnimation,
+          child: SlideTransition(
+            position: offsetAnimation,
+            child: child,
+          ),
+        );
+      },
+      child: Card(
+        key: ValueKey(question),
+        elevation: 4,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            question ?? '',
+            style: Theme.of(context).textTheme.displaySmall,
+          ),
         ),
       ),
     );
@@ -113,6 +149,7 @@ class AnswerCards extends StatelessWidget {
   Widget build(BuildContext context) {
     return GridView.count(
       shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
       childAspectRatio: 5 / 2,
       children: List.generate(answers.length, (index) {
@@ -124,12 +161,12 @@ class AnswerCards extends StatelessWidget {
           key: ValueKey(answers[index]),
           color: color,
           elevation: 2,
-          margin: EdgeInsets.all(8),
+          margin: const EdgeInsets.all(8),
           clipBehavior: Clip.hardEdge,
           child: InkWell(
             onTap: () => onTapped(index),
             child: Padding(
-              padding: EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16.0),
               child: Center(
                 child: Text(
                   answers.length > index ? answers[index] : '',
@@ -155,17 +192,13 @@ class StatusBar extends StatelessWidget {
     return Card(
       elevation: 4,
       child: Padding(
-        padding: EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(8.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Text(
-              'Question ${viewModel.answeredQuestionCount} / ${viewModel.totalQuestions}',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text(
-              'Score: ${viewModel.score}',
-              style: Theme.of(context).textTheme.titleLarge,
+            Scoreboard(
+              score: viewModel.score,
+              totalQuestions: viewModel.totalQuestions,
             ),
           ],
         ),
